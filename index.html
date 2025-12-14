@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>LUCID Snake GAME</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+  body {
+    margin: 0;
+    padding: 0;
+    background: #000; /* Vanta black */
+    color: #e0e0e0;
+    font-family: 'Inter', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    justify-content: center;
+  }
+
+  .title {
+    margin: 30px 0 10px;
+    font-size: 2.8rem;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    color: #b0b0b0;
+  }
+
+  #scoreboard {
+    display: flex;
+    gap: 40px;
+    font-size: 1.1rem;
+    margin-bottom: 20px;
+    color: #a0a0a0;
+  }
+
+  #scoreboard span {
+    font-weight: 600;
+    color:#75AF30;
+  }
+
+  #game-container {
+    padding: 20px;
+  }
+
+  #game-board {
+    width: 80vmin;
+    height: 80vmin;
+    max-width: 500px;
+    max-height: 500px;
+    background: #4C5980;
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(20, 1fr);
+    border: 5px solid #75AF30;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.8);
+  }
+
+  .snake {
+    background: #4a9eff; /* soft blue */
+    border-radius: 2px;
+    transition: background 0.4s ease;
+  }
+
+  .snake.head {
+    background: #6bb6ff; /* slightly lighter head */
+  }
+
+  .food {
+    background: #ff6b9d; /* soft coral pink */
+    border-radius: 50%;
+    animation: foodPulse 3s infinite ease-in-out;
+  }
+
+  @keyframes foodPulse {
+    0%, 100% { transform: scale(0.9); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+  }
+
+  #controls {
+    margin-top: 30px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px; /* adjusted spacing between rows */
+  }
+
+  .middle-row {
+    display: flex;
+    gap: 45px; /* adjusted spacing between left/right buttons */
+  }
+
+  .btn {
+    width: 60px;
+    height: 60px;
+    background: #fff9c4; /* soft baby lemon */
+    color: #555;          /* dark gray for contrast */
+    border: none;
+    border-radius: 12px;
+    font-size: 1.8rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  }
+
+  .btn:hover {
+    background: #fff59d; /* slightly brighter lemon on hover */
+    color: #222;
+    transform: translateY(-4px);
+  }
+
+  .btn:active {
+    transform: translateY(0);
+    background: #fef08a; /* pressed effect */
+  }
+
+  /* Game Over */
+  #game-over {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.92);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 30px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.6s ease;
+  }
+
+  #game-over.visible {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  #game-over h2 {
+    font-size: 3rem;
+    margin: 0;
+    color: #e0e0e0;
+  }
+
+  #game-over p {
+    font-size: 1.4rem;
+    color: #a0a0a0;
+  }
+
+  #restart-btn {
+    padding: 14px 40px;
+    background: #333;
+    color:    ;
+    border: none;
+    border-radius: 30px;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  #restart-btn:hover {
+    background: #4a9eff;
+    color: #000;
+  }
+
+  /* Responsive */
+  @media (max-width: 600px) {
+    .title { font-size: 2rem; }
+    #scoreboard { gap: 30px; font-size: 1rem; }
+    .btn { width: 55px; height: 55px; font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="title">LUCID ENOUGH??</h1>
+
+<div id="scoreboard">
+  <p>Score: <span id="score">0</span></p>
+  <p>High Score: <span id="highscore">0</span></p>
+</div>
+
+<div id="game-container">
+  <div id="game-board"></div>
+</div>
+
+<div id="game-over">
+  <h2>Game Over</h2>
+  <p>Final score: <span id="final-score">0</span></p>
+  <button id="restart-btn">Play Again</button>
+</div>
+
+<div id="controls">
+  <button class="btn up">↑</button>
+  <div class="middle-row">
+    <button class="btn left">←</button>
+    <button class="btn right">→</button>
+  </div>
+  <button class="btn down">↓</button>
+</div>
+
+<script>
+const board = document.getElementById("game-board");
+const scoreEl = document.getElementById("score");
+const highEl = document.getElementById("highscore");
+const gameOver = document.getElementById("game-over");
+const finalScore = document.getElementById("final-score");
+const restartBtn = document.getElementById("restart-btn");
+
+let snake = [{ x: 10, y: 10 }];
+let dx = 1, dy = 0;
+let food = randomFood();
+let speed = 160;
+let loop;
+let score = 0;
+let highscore = localStorage.getItem("snakeHigh") || 0;
+highEl.textContent = highscore;
+
+function startGame() {
+  snake = [{ x: 10, y: 10 }];
+  dx = 1; dy = 0;
+  food = randomFood();
+  score = 0;
+  scoreEl.textContent = score;
+  speed = 160;
+  clearInterval(loop);
+  loop = setInterval(gameLoop, speed);
+  gameOver.classList.remove("visible");
+  draw();
+}
+
+function gameLoop() {
+  if (!moveSnake()) return;
+  draw();
+}
+
+function moveSnake() {
+  const head = { x: snake[0].x + dx, y: snake[0].y + dy };
+
+  if (head.x < 1 || head.x > 20 || head.y < 1 || head.y > 20) {
+    endGame();
+    return false;
+  }
+
+  if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+    endGame();
+    return false;
+  }
+
+  snake.unshift(head);
+
+  if (head.x === food.x && head.y === food.y) {
+    food = randomFood();
+    score++;
+    scoreEl.textContent = score;
+    if (score > highscore) {
+      highscore = score;
+      highEl.textContent = highscore;
+      localStorage.setItem("snakeHigh", highscore);
+    }
+    speed = Math.max(80, speed - 8);
+    clearInterval(loop);
+    loop = setInterval(gameLoop, speed);
+  } else {
+    snake.pop();
+  }
+  return true;
+}
+
+function draw() {
+  board.innerHTML = "";
+
+  snake.forEach((seg, i) => {
+    const el = document.createElement("div");
+    el.style.gridColumnStart = seg.x;
+    el.style.gridRowStart = seg.y;
+    el.classList.add("snake");
+    if (i === 0) el.classList.add("head");
+    board.appendChild(el);
+  });
+
+  const foodEl = document.createElement("div");
+  foodEl.style.gridColumnStart = food.x;
+  foodEl.style.gridRowStart = food.y;
+  foodEl.classList.add("food");
+  board.appendChild(foodEl);
+}
+
+function randomFood() {
+  let pos;
+  do {
+    pos = {
+      x: Math.floor(Math.random() * 20) + 1,
+      y: Math.floor(Math.random() * 20) + 1
+    };
+  } while (snake.some(s => s.x === pos.x && s.y === pos.y));
+  return pos;
+}
+
+function endGame() {
+  clearInterval(loop);
+  finalScore.textContent = score;
+  gameOver.classList.add("visible");
+}
+
+// Controls
+document.addEventListener("keydown", e => {
+  if (e.key === "ArrowUp" && dy !== 1) { dx = 0; dy = -1; }
+  if (e.key === "ArrowDown" && dy !== -1) { dx = 0; dy = 1; }
+  if (e.key === "ArrowLeft" && dx !== 1) { dx = -1; dy = 0; }
+  if (e.key === "ArrowRight" && dx !== -1) { dx = 1; dy = 0; }
+});
+
+document.querySelector(".up").onclick = () => { if (dy !== 1) { dx = 0; dy = -1; } };
+document.querySelector(".down").onclick = () => { if (dy !== -1) { dx = 0; dy = 1; } };
+document.querySelector(".left").onclick = () => { if (dx !== 1) { dx = -1; dy = 0; } };
+document.querySelector(".right").onclick = () => { if (dx !== -1) { dx = 1; dy = 0; } };
+
+restartBtn.onclick = startGame;
+
+// Start
+startGame();
+</script>
+</body>
+</html>
